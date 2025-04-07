@@ -30,9 +30,9 @@ def get_processor():
 @st.cache_resource
 def get_llm_processor():
     llm_processor = LLMProcessor(
-        api_key=st.secrets.OPENAI_API_KEY,
-        api_base=st.secrets.OPENAI_API_BASE,
-        model_name=st.secrets.OPENAI_MODEL
+        api_key=st.secrets["OPENAI_API_KEY"],
+        api_base=st.secrets["OPENAI_API_BASE"],
+        model_name=st.secrets["OPENAI_MODEL"]
     )
     # 使用会话状态中的提示词
     llm_processor.resume_prompt = st.session_state.resume_prompt
