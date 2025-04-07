@@ -35,10 +35,14 @@ def calculate_student_tags(student_data):
     gpa_value = education.get("gpaValue")  # 从education中获取GPA成绩
     test_scores = resume_data.get("testScores", [])  # 从resume_analysis中获取语言和标准化考试成绩
     
+    try:
     # 从offer_analyses中提取admissions信息
-    admissions = []
-    for offer in student_data.get("offer_analyses", []):
-        admissions.extend(offer.get("admissions", []))
+        admissions = []
+        for offer in student_data.get("offer_analyses", []):
+            admissions.extend(offer.get("admissions", []))
+    except Exception as e:
+        print(f"提取admissions信息时出错: {e}, {student_data}")
+        return None
     
     #--------------------------------------------------
     # 1. 判断'奖学金'标签
