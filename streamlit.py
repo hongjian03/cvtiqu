@@ -85,14 +85,18 @@ def main_page():
                 
                 # 处理Offer
                 if offer_files:
-                    offer_texts = []
+                    offer_paths = []
                     for i, offer_file in enumerate(offer_files):
                         offer_path = os.path.join(temp_dir, f"offer_{i}.pdf")
                         with open(offer_path, "wb") as f:
                             f.write(offer_file.getvalue())
-                        
-                        # 提取文本
-                        offer_result = processor.process_offer(offer_path)
+                        offer_paths.append(offer_path)
+                    
+                    # 提取文本 - 使用文件路径列表调用process_offer
+                    offer_results = processor.process_offer(offer_paths)
+                    offer_texts = []
+                    
+                    for offer_result in offer_results:
                         if offer_result["success"]:
                             offer_texts.append(offer_result["content"])
                         else:
