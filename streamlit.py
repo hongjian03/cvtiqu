@@ -104,21 +104,52 @@ def main_page():
                     
                     if offer_texts:
                         # 使用LLM分析
-                        offer_analyses = asyncio.run(llm_processor.process_documents(
+                        api_results = asyncio.run(llm_processor.process_documents(
                             resume_text=resume_result["content"] if resume_file else "",
                             offer_texts=offer_texts
                         ))
-                        results["offer_analyses"] = offer_analyses
+                        
+                        # 确保offer_analyses是一个列表
+                        if isinstance(api_results, dict):
+                            offer_analyses = api_results.get("offer_analyses", [])
+                        else:
+                            offer_analyses = []
+                        
+                        # 处理可能的格式不一致情况
+                        processed_offer_analyses = []
+                        for offer in offer_analyses:
+                            # 检查offer是否为字典且包含admissions字段
+                            if isinstance(offer, dict) and "admissions" in offer:
+                                processed_offer_analyses.append(offer)
+                            # 如果offer是字符串，尝试解析为JSON
+                            elif isinstance(offer, str):
+                                try:
+                                    offer_dict = json.loads(offer)
+                                    processed_offer_analyses.append(offer_dict)
+                                except:
+                                    # 如果无法解析为JSON，包装为统一格式
+                                    processed_offer_analyses.append({"admissions": []})
+                            else:
+                                # 确保每个offer至少有一个空的admissions列表
+                                processed_offer_analyses.append({"admissions": []})
+                        
+                        results["offer_analyses"] = processed_offer_analyses
                 
                 # 计算标签和丰富学校排名
                 if results:
                     # 计算标签
-                    tags = calculate_student_tags(results)
-                    if tags:
-                        results["tags"] = tags
+                    try:
+                        tags = calculate_student_tags(results)
+                        if tags:
+                            results["tags"] = tags
+                    except Exception as e:
+                        st.warning(f"计算标签时出错: {str(e)}")
                     
                     # 丰富学校排名
-                    enrich_school_rankings(results)
+                    try:
+                        enrich_school_rankings(results)
+                    except Exception as e:
+                        st.warning(f"丰富学校排名时出错: {str(e)}")
                     
                     # 显示结果
                     st.subheader("分析结果")
