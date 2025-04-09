@@ -41,6 +41,10 @@ def get_llm_processor():
 
 # 主页面
 def main_page():
+    langsmith_api_key = st.secrets["LANGCHAIN_API_KEY"]
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ["LANGCHAIN_API_KEY"] = langsmith_api_key
+    os.environ["LANGCHAIN_PROJECT"] = "简历和Offer分析工具"
     st.title("📄 简历和Offer分析工具")
     
     # 创建两列布局
@@ -137,6 +141,12 @@ def main_page():
                 
                 # 计算标签和丰富学校排名
                 if results:
+                    # 丰富学校排名
+                    try:
+                        enrich_school_rankings(results)
+                    except Exception as e:
+                        st.warning(f"丰富学校排名时出错: {str(e)}")
+                        
                     # 计算标签
                     try:
                         tags = calculate_student_tags(results)
@@ -144,13 +154,6 @@ def main_page():
                             results["tags"] = tags
                     except Exception as e:
                         st.warning(f"计算标签时出错: {str(e)}")
-                    
-                    # 丰富学校排名
-                    try:
-                        enrich_school_rankings(results)
-                    except Exception as e:
-                        st.warning(f"丰富学校排名时出错: {str(e)}")
-                    
                     # 显示结果
                     st.subheader("分析结果")
                     st.json(results)
