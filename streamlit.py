@@ -19,8 +19,80 @@ st.set_page_config(
 # 初始化会话状态
 if 'resume_prompt' not in st.session_state:
     llm_processor = LLMProcessor()
-    st.session_state.resume_prompt = llm_processor._get_resume_prompt("")
-    st.session_state.offer_prompt = llm_processor._get_offer_prompt("")
+    # 存储原始的提示词模板，而不是已经处理过的提示词
+    st.session_state.resume_prompt = """You are an expert at extracting information from resumes.
+        
+Given the text content of a resume, extract and format the following information as a JSON object.
+You must respond with ONLY the JSON object, no other text.
+
+{
+    "studentName": "只写姓氏首字母+同学，比如'Z同学'",
+    "education": {
+        "institution": "学校名称(用中文,如:'北京大学')",
+        "major": "专业名称(用中文,如:'计算机科学与技术')",
+        "gpaValue": "GPA成绩(数字格式,如:3.38)",
+        "gpaOriginal": "原始GPA格式(如:'3.38/4.0')",
+         "institutionType": "院校类型(枚举值:'DOMESTIC_C9','DOMESTIC_985','DOMESTIC_211','DOMESTIC_COOPERATIVE','OVERSEAS_UNIVERSITY','DOMESTIC_UNIVERSITY','HONGKONG_MACAO_TAIWAN', 'OVERSEAS_K12','DOMESTIC_K12')"
+    },
+    "testScores": [ 
+        {
+            "testType": "LANGUAGE or STANDARDIZED or OTHER",
+            "testName": "考试名称",
+            "testScore": "总分",
+            "detailScores": {
+                "分项名称": "分项分数"
+            }
+        }
+    ],
+    "experiences": [
+        {
+            "type": "INTERNSHIP/RESEARCH/COMPETITION/OTHER",
+            "description": "一句话概述经历类型和性质",
+            "organization": "机构档次描述",
+            "role": "担任角色(必填,如果简历中未明确说明,请根据工作内容推断)",
+            "duration": "持续时间",
+            "achievement": "成果描述"
+        }
+    ]
+}
+
+Resume text:
+{resume_text}
+
+Please return only the JSON format analysis result without additional explanation text.
+"""
+    st.session_state.offer_prompt = """You are an expert at extracting information from university admission offer letters and gathering additional program information.
+        
+Follow these steps exactly:
+1. First analyze the offer letter text to extract basic information
+2. Extract rankings if mentioned in the text
+3. Combine all information into a JSON response
+
+The response must be a valid JSON object with this exact structure:
+{
+    "admissions": [
+        {
+            "school": "the full university name in English",
+            "country": "学校所在国家(用中文,如:'美国'/'英国'/'新加坡')",
+            "program": "the full program name in English",
+            "majorCategory": "专业类别(用中文,如:'计算机科学'/'工商管理'/'数据科学')",
+            "degreeType": "UNDERGRADUATE/MASTER/PHD/OTHER",
+            "rankingType": "必填，排名类型(美国学校填写'US News',其他学校填写'QS')",
+            "rankingValue": "",
+            "rankingTier": "",
+            "enrollmentSeason": "入学季节(如：Spring/Fall/Summer/Winter 2025)",
+            "hasScholarship": true/false,
+            "scholarshipAmount": "奖学金金额(包含年度信息,如:'$7,000/year'/'￥50,000/semester')",
+            "scholarshipNote": "额外的奖学金说明(如获奖原因、续期条件等)"
+        }
+    ]
+}
+
+Offer letter text:
+{offer_text}
+
+Please return only the JSON format analysis result without additional explanation text.
+"""
 
 # 初始化处理器
 @st.cache_resource
@@ -29,15 +101,28 @@ def get_processor():
 
 @st.cache_resource
 def get_llm_processor():
-    llm_processor = LLMProcessor(
-        api_key=st.secrets["OPENAI_API_KEY"],
-        api_base=st.secrets["OPENAI_API_BASE"],
-        model_name=st.secrets["OPENAI_MODEL"]
-    )
-    # 使用会话状态中的提示词
-    llm_processor.resume_prompt = st.session_state.resume_prompt
-    llm_processor.offer_prompt = st.session_state.offer_prompt
-    return llm_processor
+    try:
+        # 使用Streamlit Secrets创建LLM处理器
+        llm_processor = LLMProcessor(
+            api_key=st.secrets["OPENAI_API_KEY"],
+            api_base=st.secrets["OPENAI_API_BASE"],
+            model_name=st.secrets["OPENAI_MODEL"]
+        )
+        
+        # 确保会话状态中的提示词已初始化
+        if 'resume_prompt' not in st.session_state:
+            st.warning("提示词尚未初始化，正在使用默认提示词")
+            return llm_processor
+        
+        # 使用会话状态中的提示词
+        llm_processor.resume_prompt = st.session_state.resume_prompt
+        llm_processor.offer_prompt = st.session_state.offer_prompt
+        
+        return llm_processor
+    except Exception as e:
+        st.error(f"初始化LLM处理器时出错: {str(e)}")
+        # 返回一个备用处理器
+        return LLMProcessor()
 
 # 主页面
 def main_page():
@@ -63,8 +148,14 @@ def main_page():
         if resume_file is None and not offer_files:
             st.error("请至少上传一个文件进行分析")
             return
-        st.write(f"简历提示词：{st.session_state.resume_prompt}")
-        st.write(f"Offer提示词：{st.session_state.offer_prompt}")
+        
+        # 显示提示词信息（调试用）
+        with st.expander("查看提示词配置（调试用）"):
+            st.text("简历提示词:")
+            st.code(st.session_state.resume_prompt)
+            st.text("Offer提示词:")
+            st.code(st.session_state.offer_prompt)
+        
         with st.spinner("正在分析中..."):
             processor = get_processor()
             llm_processor = get_llm_processor()
@@ -186,8 +277,18 @@ def prompts_page():
         key="offer_prompt_input"
     )
     
+    # 提示用户添加占位符
+    st.info("请确保简历提示词中包含 {resume_text} 占位符，Offer提示词中包含 {offer_text} 占位符，用于替换实际的文本内容。")
+    
     # 更新按钮
     if st.button("更新提示词", type="primary"):
+        # 检查占位符是否存在
+        if "{resume_text}" not in resume_prompt:
+            st.warning("警告：简历提示词中未找到 {resume_text} 占位符，系统将自动在提示词末尾添加简历文本。")
+        
+        if "{offer_text}" not in offer_prompt:
+            st.warning("警告：Offer提示词中未找到 {offer_text} 占位符，系统将自动在提示词末尾添加Offer文本。")
+        
         # 更新会话状态中的提示词
         st.session_state.resume_prompt = resume_prompt
         st.session_state.offer_prompt = offer_prompt
