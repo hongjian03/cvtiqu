@@ -35,6 +35,10 @@ class LLMProcessor:
         # 检查是否使用OpenRouter
         self.is_openrouter = "openrouter.ai" in self.api_base
         
+        # 初始化提示词
+        self.resume_prompt = None
+        self.offer_prompt = None
+        
         print(f"LLM配置: API基础URL={self.api_base}, 模型={self.model_name}")
         print(f"使用OpenRouter API: {self.is_openrouter}")
         
@@ -66,6 +70,8 @@ class LLMProcessor:
     
     def _get_resume_prompt(self, resume_text: str) -> str:
         """生成简历分析提示词"""
+        if self.resume_prompt:
+            return self.resume_prompt.format(resume_text=resume_text)
         return f"""You are an expert at extracting information from resumes.
         
 Given the text content of a resume, extract and format the following information as a JSON object.
@@ -136,6 +142,8 @@ Please return only the JSON format analysis result without additional explanatio
     
     def _get_offer_prompt(self, offer_text: str) -> str:
         """生成Offer分析提示词"""
+        if self.offer_prompt:
+            return self.offer_prompt.format(offer_text=offer_text)
         return f"""You are an expert at extracting information from university admission offer letters and gathering additional program information.
         
 Follow these steps exactly:
@@ -152,9 +160,9 @@ The response must be a valid JSON object with this exact structure:
             "program": "the full program name in English",
             "majorCategory": "专业类别(用中文,如:'计算机科学'/'工商管理'/'数据科学')",
             "degreeType": "UNDERGRADUATE/MASTER/PHD/OTHER",
-            "rankingType": "排名类型(需要综合排名,美国学校用'US News',其他用'QS')",
-            "rankingValue": "排名数值",
-            "rankingTier": "排名层级,例如：TOP100/TOP50/TOP30/TOP20/TOP10",
+            "rankingType": "必填，排名类型(美国学校填写'US News',其他学校填写'QS')",
+            "rankingValue": "",
+            "rankingTier": "",
             "enrollmentSeason": "入学季节(如：Spring/Fall/Summer/Winter 2025)",
             "hasScholarship": true/false,
             "scholarshipAmount": "奖学金金额(包含年度信息,如:'$7,000/year'/'￥50,000/semester')",

@@ -63,7 +63,8 @@ def main_page():
         if resume_file is None and not offer_files:
             st.error("请至少上传一个文件进行分析")
             return
-            
+        st.write(f"简历提示词：{st.session_state.resume_prompt}")
+        st.write(f"Offer提示词：{st.session_state.offer_prompt}")
         with st.spinner("正在分析中..."):
             processor = get_processor()
             llm_processor = get_llm_processor()
