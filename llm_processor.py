@@ -71,7 +71,8 @@ class LLMProcessor:
     def _get_resume_prompt(self, resume_text: str) -> str:
         """生成简历分析提示词"""
         if self.resume_prompt:
-            return self.resume_prompt.format(resume_text=resume_text)
+            # 安全地替换占位符，避免format()的键值错误
+            return self.resume_prompt.replace("{resume_text}", resume_text)
         return f"""You are an expert at extracting information from resumes.
         
 Given the text content of a resume, extract and format the following information as a JSON object.
@@ -143,7 +144,8 @@ Please return only the JSON format analysis result without additional explanatio
     def _get_offer_prompt(self, offer_text: str) -> str:
         """生成Offer分析提示词"""
         if self.offer_prompt:
-            return self.offer_prompt.format(offer_text=offer_text)
+            # 安全地替换占位符，避免format()的键值错误
+            return self.offer_prompt.replace("{offer_text}", offer_text)
         return f"""You are an expert at extracting information from university admission offer letters and gathering additional program information.
         
 Follow these steps exactly:
